@@ -1,0 +1,47 @@
+version: "3.5"
+
+services:
+  database:
+    container_name: spintectest-database
+    image: "postgres:13.4-alpine"
+    restart: unless-stopped
+    env_file:
+      - ./api/.env.local
+    volumes:
+      - database-volume:/spintectest/data
+    ports:
+      - "15435:5432"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1M"
+        max-file: "10"
+
+
+  api:
+    container_name: spintectest-api
+    build:
+      context: api
+      dockerfile: Dockerfile
+    volumes:
+      - ./api:/code
+    command: sh -c "
+      wait-for-it database:5432
+      && python manage.py migrate
+      && python manage.py runserver 0.0.0.0:8000 --settings=spintectest.settings
+      "
+    ports:
+      - "8000:8000"
+    depends_on:
+      - database
+    env_file:
+      - ./api/.env.local
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1M"
+        max-file: "10"
+
+volumes:
+  database-volume:
+    driver: local
